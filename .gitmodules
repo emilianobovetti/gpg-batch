@@ -1,0 +1,3 @@
+[submodule "grampa-js"]
+	path = grampa-js
+	url = https://github.com/emilianobovetti/grampa-js.git

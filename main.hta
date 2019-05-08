@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+
+<html>
+  <head>
+
+  <hta:application id="gpg-batch"
+    border="thin"
+    innerborder="no"
+    scroll="no"
+    caption="yes"
+    showintaskbar="yes"
+    singleinstance="yes"
+    sysmenu="yes" />
+
+  <title>Encryption</title>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="css/main.css" media="screen" />
+
+  </head>
+
+  <body>
+    <img id="image-box">
+
+    <script src="grampa-js/src/grampa.js"></script>
+
+    <script>
+
+window.resizeTo(400, 400);
+
+var display = grampa.display;
+var path = grampa.path;
+
+var FileSystem = new ActiveXObject('Scripting.FileSystemObject');
+var Shell = new ActiveXObject('WScript.Shell');
+
+var tempDir = Shell.ExpandEnvironmentStrings('%Temp%');
+var scriptDir = path.dirname(document.location.pathname);
+
+function trim (str) {
+  return str.replace(/^\s+|\s+$/g, '');
+}
+
+function substituteCommand (cmd) {
+  var stdOutFilePath = path.join(tempDir, 'gpg-batch');
+  Shell.Run(cmd + ' >' + stdOutFilePath, 0, true);
+  var stdOutFile = FileSystem.OpenTextFile(stdOutFilePath, 1);
+  var stdOut = trim(stdOutFile.ReadAll());
+
+  stdOutFile.Close();
+  FileSystem.DeleteFile(stdOutFilePath);
+
+  return stdOut;
+}
+
+var lockFilePath = substituteCommand(path.join(scriptDir, 'context.cmd LockFile'));
+var errorLevelFilePath = substituteCommand(path.join(scriptDir, 'context.cmd ErrorLevelFile'));
+
+var spinner = {
+  imageBoxElement: document.getElementById('image-box'),
+
+  show: function () {
+    this.imageBoxElement.setAttribute('src', 'img/spinner.gif');
+  },
+
+  hide: function () {
+    this.imageBoxElement.removeAttribute('src');
+  }
+};
+
+var lockFileChecker = {
+  checkStatus: function () {
+    if (FileSystem.FileExists(lockFilePath)) return;
+
+    lockFileChecker.stop();
+
+    if (FileSystem.FileExists(errorLevelFilePath)) {
+      var file = FileSystem.OpenTextFile(errorLevelFilePath, 1);
+      var errorlevel = parseInt(trim(file.ReadAll()));
+      file.Close();
+
+      displayErrorLevel(errorlevel);
+    } else {
+      displayErrorLevel(-1);
+    }
+  },
+
+  start: function () {
+    display.add('Attendere...');
+    spinner.show();
+    this.intervalId = setInterval(this.checkStatus, 500);
+  },
+
+  stop: function () {
+    display.empty();
+    spinner.hide();
+    clearInterval(this.intervalId);
+  }
+};
+
+if ( ! FileSystem.FileExists(lockFilePath)) {
+  Shell.Run(path.join(scriptDir, 'main.cmd'), 0, false);
+}
+
+lockFileChecker.start();
+
+function displayErrorLevel (errorlevel) {
+  /* errorlevel 1 = lockfile-found
+   * this errorlevel won't be written
+   * on errorlevelfile
+   */
+  switch (errorlevel) {
+    // success
+    case 0:
+      display.add('Operazione completata');
+      break;
+
+    // no-doc-dir
+    case 2:
+      display.add('Cartella documenti non trovata');
+      break;
+
+    // cannot-move-doc-dir
+    case 3:
+      display.add('Impossibile spostare la cartella documenti');
+      break;
+
+    // 7z-add-fail
+    case 4:
+      display.add("Si è verificato un errore la creazione dell'archivio");
+      break;
+
+    // gpg-encrypt-fail
+    case 5:
+      display.add('Si è verificato un errore durante il criptaggio dei dati');
+      break;
+
+    // no-encryped-archive
+    case 6:
+      display.add('File criptato non trovato');
+      break;
+
+    // gpg-decrypt-fail
+    case 7:
+      display.add('Si è verificato un errore durante il decriptaggio dei dati');
+      break;
+
+    // 7z-extract-fail
+    case 8:
+      display.add("Si è verificato un errore durante l'estrazione dell'archivio");
+      break;
+
+    default:
+      display.add('Errore sconosciuto');
+      break;
+  }
+
+  // setTimeout(function () { window.close(); }, 1000);
+}
+
+    </script>
+  </body>
+</html>

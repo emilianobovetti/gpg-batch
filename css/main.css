@@ -1,0 +1,11 @@
+body {
+  font-family: 'Trebuchet MS', Arial, Helvetica, sans-serif;
+  font-size: 30px;
+  background-color: #e5eff1;
+  text-align: center;
+}
+
+#image-box {
+  width: 300px;
+  height: auto;
+}
